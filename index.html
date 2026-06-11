@@ -355,9 +355,9 @@ const S={
   sim:{modo:'c6',parcelas:1,valor:0}
 };
 
-function save(){try{localStorage.setItem('fin10',JSON.stringify({cards:S.cards,cfg:S.cfg,fixas:S.fixas,entradas:S.entradas,obraAssumida:S.obraAssumida,months:S.months,depara:S.depara,sim:S.sim}))}catch(e){}}
+function save(){try{localStorage.setItem('fin11',JSON.stringify({cards:S.cards,cfg:S.cfg,fixas:S.fixas,entradas:S.entradas,obraAssumida:S.obraAssumida,months:S.months,depara:S.depara,sim:S.sim}))}catch(e){}}
 function load(){
-  try{const d=localStorage.getItem('fin10');if(d){const p=JSON.parse(d);
+  try{const d=localStorage.getItem('fin11');if(d){const p=JSON.parse(d);
     if(p.cards){if(p.cards.itau)Object.assign(S.cards.itau,p.cards.itau);if(p.cards.c6)Object.assign(S.cards.c6,p.cards.c6);}
     if(p.cfg)Object.assign(S.cfg,p.cfg);if(p.fixas&&p.fixas.length)S.fixas=p.fixas;
     if(p.obraAssumida)Object.assign(S.obraAssumida,p.obraAssumida);
@@ -445,8 +445,14 @@ function calcFlow(){
       det:`Transfere antes do dia ${S.cfg.venc_c6} · você repassa na fatura`});
     eventos.push({dia:S.cfg.venc_c6,tipo:'in',nome:'1º salário',val:S.cfg.sal1});
     const impC6=c6ImpNat();
-    if(impC6>0)eventos.push({dia:S.cfg.venc_c6,tipo:'out',nome:'Fatura C6 — pessoal (50%)',val:impC6,
-      det:`Total fatura: ${fmt(c6Total())} · Obra pai: ${fmt(obraC6Val())} · Pessoal: ${fmt(c6Pessoal())} · Seu impacto: ${fmt(impC6)}`});
+    const c6Tot=c6Total();
+    eventos.push({dia:S.cfg.venc_c6,tipo:'out',
+      nome: c6Tot>0?'Fatura C6 — pessoal (50%)':'Fatura C6 — ⚠ informar valor',
+      val: impC6,
+      det: c6Tot>0
+        ?`Total: ${fmt(c6Tot)} · Obra pai: ${fmt(obraC6Val())} · Pessoal: ${fmt(c6Pessoal())} · Seu impacto: ${fmt(impC6)}`
+        :'Informe o valor da fatura em Configurar → Faturas dos cartões'
+    });
   }
 
   if(hoje<S.cfg.venc_itau){
@@ -455,8 +461,15 @@ function calcFlow(){
       det:`Transfere antes do dia ${S.cfg.venc_itau} · você repassa na fatura`});
     eventos.push({dia:S.cfg.venc_itau,tipo:'in',nome:'2º salário',val:S.cfg.sal2});
     const impIt=itauPessoal();
-    if(impIt>0)eventos.push({dia:S.cfg.venc_itau,tipo:'out',nome:'Fatura Itaú — pessoal',val:impIt,
-      det:`Total fatura: ${fmt(itauTotal())} · Obra pai: ${fmt(obraItauVal())} · Seu impacto: ${fmt(impIt)}`});
+    const itauTot=itauTotal();
+    // Sempre mostra a fatura — mesmo se parcial=0 aparece como "a confirmar"
+    eventos.push({dia:S.cfg.venc_itau,tipo:'out',
+      nome: itauTot>0?'Fatura Itaú — pessoal':'Fatura Itaú — ⚠ informar valor',
+      val: impIt,
+      det: itauTot>0
+        ?`Total: ${fmt(itauTot)} · Obra pai: ${fmt(obraItauVal())} · Seu impacto: ${fmt(impIt)}`
+        :'Informe o valor da fatura em Configurar → Faturas dos cartões'
+    });
   }
 
   // Fixas: cada uma no seu dia exato, apenas as que ainda não venceram
