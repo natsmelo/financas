@@ -335,15 +335,19 @@ const S={
        ultima_atualizacao:null},
   obraAssumida:{jun:0,jul:0,ago:0,set:0,out:0,nov:0,dez:0},
   fixas:[
-    {id:1,nome:'Condomínio',valor:800,venc:10,cat:'CASA',div:'prop',ativa:true},
-    {id:2,nome:'Internet / Luz / Gás',valor:347,venc:15,cat:'CASA',div:'prop',ativa:true},
-    {id:3,nome:'Carro',valor:1028,venc:22,cat:'CARRO',div:'50_50',ativa:true},
-    {id:4,nome:'5º andar',valor:180,venc:25,cat:'CASA',div:'prop',ativa:true},
-    {id:5,nome:'Imposto de Renda',valor:566,venc:30,cat:'OUTROS',div:'nat',ativa:true},
-    {id:6,nome:'Prev',valor:138.93,venc:20,cat:'OUTROS',div:'nat',ativa:true},
-    {id:7,nome:'Seg Cartão',valor:5.82,venc:20,cat:'OUTROS',div:'nat',ativa:true},
-    {id:8,nome:'Seg Vida',valor:33.44,venc:20,cat:'SAUDE',div:'nat',ativa:true},
-    {id:9,nome:'Celular',valor:80,venc:20,cat:'ASSINATURA',div:'nat',ativa:true},
+    {id:1, nome:'Condomínio',     valor:1122,   venc:8,  cat:'CASA',        div:'prop',  ativa:true},
+    {id:2, nome:'Luz',            valor:129.97, venc:3,  cat:'CASA',        div:'prop',  ativa:true},
+    {id:3, nome:'Gás',            valor:155.56, venc:7,  cat:'CASA',        div:'prop',  ativa:true},
+    {id:4, nome:'Gás Instalação', valor:110.8,  venc:10, cat:'CASA',        div:'prop',  ativa:true},
+    {id:5, nome:'Internet',       valor:166,    venc:6,  cat:'CASA',        div:'prop',  ativa:true},
+    {id:6, nome:'5º andar',       valor:320,    venc:25, cat:'CASA',        div:'prop',  ativa:true},
+    {id:7, nome:'Carro',          valor:1028,   venc:23, cat:'TRANSPORTE',  div:'50_50', ativa:true},
+    {id:8, nome:'Inglês',         valor:330,    venc:10, cat:'EDUCACAO',    div:'nat',   ativa:true},
+    {id:9, nome:'Prev',           valor:138.93, venc:20, cat:'OUTROS',      div:'nat',   ativa:true},
+    {id:10,nome:'Seg Cartão',     valor:5.82,   venc:20, cat:'OUTROS',      div:'nat',   ativa:true},
+    {id:11,nome:'Seg Vida',       valor:33.44,  venc:20, cat:'SAUDE',       div:'nat',   ativa:true},
+    {id:12,nome:'Celular',        valor:80,     venc:20, cat:'ASSINATURA',  div:'nat',   ativa:true},
+    {id:13,nome:'Imposto de Renda',valor:566,   venc:30, cat:'OUTROS',      div:'nat',   ativa:true},
   ],
   months:{},
   entradas:[], // entradas extras: {id,desc,valor,dia,mes,recorrente,ativa}
@@ -422,49 +426,57 @@ function calcFlow(){
   const extrasIn=(S.entradas||[]).filter(e=>e.ativa&&(e.recorrente||e.mes===hoje_m));
   const totalExtrasIn=extrasIn.reduce((s,e)=>s+e.valor,0);
 
-  // Eventos em ordem cronológica
-  // Amanda fixa dia 1 — só mostrar se ainda não chegou este mês
+  // Eventos em ordem cronológica — cada item no seu dia exato
   const eventos=[];
-  if(t.d<1){
+  const hoje=t.d;
+
+  // Amanda fixa dia 1 — só se ainda não chegou
+  if(hoje<1){
     eventos.push({dia:1,tipo:'in',nome:'Amanda — transferência fixa',val:S.cfg.amanda_fixo||1500,
       det:'Carro (50%) + 5º andar + extras casa'});
   }
-  if(t.d<S.cfg.venc_c6){
-    const pC6=obPaiC6();const amC6=c6Amanda();
+
+  // Faturas dos cartões (pai + amanda circulam antes do vencimento)
+  if(hoje<S.cfg.venc_c6){
+    const pC6=obPaiC6(),amC6=c6Amanda();
     if(pC6>0)eventos.push({dia:S.cfg.venc_c6-1,tipo:'info',nome:'Pai — obra C6',val:pC6,
       det:`Transfere antes do dia ${S.cfg.venc_c6} · você repassa na fatura`});
     if(amC6>0)eventos.push({dia:S.cfg.venc_c6-1,tipo:'info',nome:'Amanda — 50% C6 pessoal',val:amC6,
       det:`Transfere antes do dia ${S.cfg.venc_c6} · você repassa na fatura`});
     eventos.push({dia:S.cfg.venc_c6,tipo:'in',nome:'1º salário',val:S.cfg.sal1});
     const impC6=c6ImpNat();
-    if(impC6>0)eventos.push({dia:S.cfg.venc_c6,tipo:'out',nome:'Fatura C6 — seu impacto',val:impC6,
-      det:`Pessoal: ${fmt(c6Pessoal())} × 50% = ${fmt(impC6)} · Obra pai: ${fmt(obraC6Val())}`});
-    const fAte5=S.fixas.filter(f=>f.ativa&&f.venc<=S.cfg.venc_c6);
-    const fAte5val=fAte5.reduce((s,f)=>s+fixaValorNat(f),0);
-    if(fAte5val>0)eventos.push({dia:S.cfg.venc_c6,tipo:'out',nome:'Fixas até dia '+S.cfg.venc_c6,val:fAte5val,
-      det:fAte5.map(f=>`${f.nome}: ${fmt(fixaValorNat(f))}`).join(' · ')});
+    if(impC6>0)eventos.push({dia:S.cfg.venc_c6,tipo:'out',nome:'Fatura C6 — pessoal (50%)',val:impC6,
+      det:`Total fatura: ${fmt(c6Total())} · Obra pai: ${fmt(obraC6Val())} · Pessoal: ${fmt(c6Pessoal())} · Seu impacto: ${fmt(impC6)}`});
   }
-  if(t.d<S.cfg.venc_itau){
+
+  if(hoje<S.cfg.venc_itau){
     const pIt=obPaiItau();
     if(pIt>0)eventos.push({dia:S.cfg.venc_itau-1,tipo:'info',nome:'Pai — obra Itaú',val:pIt,
       det:`Transfere antes do dia ${S.cfg.venc_itau} · você repassa na fatura`});
     eventos.push({dia:S.cfg.venc_itau,tipo:'in',nome:'2º salário',val:S.cfg.sal2});
     const impIt=itauPessoal();
     if(impIt>0)eventos.push({dia:S.cfg.venc_itau,tipo:'out',nome:'Fatura Itaú — pessoal',val:impIt,
-      det:`Total: ${fmt(itauTotal())} · Obra pai: ${fmt(obraItauVal())} · Seu impacto: ${fmt(impIt)}`});
-    const fAte20=S.fixas.filter(f=>f.ativa&&f.venc>S.cfg.venc_c6&&f.venc<=S.cfg.venc_itau);
-    const fAte20val=fAte20.reduce((s,f)=>s+fixaValorNat(f),0);
-    if(fAte20val>0)eventos.push({dia:S.cfg.venc_itau,tipo:'out',nome:'Débitos dia '+S.cfg.venc_itau,val:fAte20val,
-      det:fAte20.map(f=>`${f.nome}: ${fmt(fixaValorNat(f))}`).join(' · ')});
+      det:`Total fatura: ${fmt(itauTotal())} · Obra pai: ${fmt(obraItauVal())} · Seu impacto: ${fmt(impIt)}`});
   }
-  // Fixas após dia 20 — cada uma no seu dia exato
-  S.fixas.filter(f=>f.ativa&&f.venc>S.cfg.venc_itau).forEach(f=>{
-    const nat=fixaValorNat(f);const amVal=fixaValorAmanda(f);
-    const det=amVal>0?`Total: ${fmt(f.valor)} · Nat: ${fmt(nat)} · Amanda já transferiu: ${fmt(amVal)}`:`100% Nat`;
-    if(t.d<f.venc)eventos.push({dia:f.venc,tipo:'out',nome:f.nome,val:nat,det});
+
+  // Fixas: cada uma no seu dia exato, apenas as que ainda não venceram
+  S.fixas.filter(f=>f.ativa&&f.venc>hoje).forEach(f=>{
+    const nat=fixaValorNat(f);
+    const amVal=fixaValorAmanda(f);
+    let det='';
+    if(f.div==='prop') det=`Total: ${fmt(f.valor)} · Nat ${(pctNat()*100).toFixed(0)}%: ${fmt(nat)} · Amanda: ${fmt(amVal)}`;
+    else if(f.div==='50_50') det=`Total: ${fmt(f.valor)} · Nat 50%: ${fmt(nat)} · Amanda 50% (já transferiu dia 1)`;
+    else det=`100% Nat: ${fmt(nat)}`;
+    eventos.push({dia:f.venc,tipo:'out',nome:f.nome,val:nat,det});
   });
-  // Entradas extras
-  extrasIn.forEach(e=>eventos.push({dia:e.dia||28,tipo:'in',nome:e.desc+(e.recorrente?' ↺':''),val:e.valor,det:'Entrada extra'}));
+
+  // Entradas extras do mês ainda não recebidas
+  extrasIn.filter(e=>!e.dia||e.dia>hoje).forEach(e=>{
+    eventos.push({dia:e.dia||28,tipo:'in',nome:e.desc+(e.recorrente?' ↺':''),val:e.valor,det:'Entrada extra'});
+  });
+
+  // Ordenar por dia
+  eventos.sort((a,b)=>a.dia-b.dia||(a.tipo==='in'?-1:1));
 
     // CÁLCULO DO LIVRE: só o que realmente impacta Nat
   const entradasReais=eventos.filter(e=>e.tipo==='in').reduce((s,e)=>s+e.val,0);
